@@ -35,7 +35,7 @@ def thirdArabicRule(string):
 
 
 arabic_rules_dict ={
-	'no_accents': firstArabicRule,
-	'no_accents_noAL': secondArabicRule,
-	'no_accents_noAL_noprefsuf': thirdArabicRule
+	'_ns': firstArabicRule,
+	'_ns_noal': secondArabicRule,
+	'_ns_noal_nosp': thirdArabicRule
 }

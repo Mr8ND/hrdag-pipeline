@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import unicodedata
+from parser_utils import Astr, readjustSpacesInString
 
 lookup_dict = {'\u0627\u0623\u0625\u0622\u062d\u062e\u0647\u0639\u063a\u0634\u0648\u064a\u0621': '0',
 			   '\u0641\u0628\u0649': '1',
@@ -26,35 +27,6 @@ def emptyStringError(arab_str):
 		raise TypeError('The string passed into this function needs to be non-empty')
 	else:
 		pass
-
-
-def readjustSpacesInString(string):
-    """
-    This function removes the double spaces in a string, on top of the spaces at the beginning/end.
-
-    INPUT
-    string - any kind of string, works with Arabic string if utf-8 encoded
-
-    OUTPUT
-    The same string without double spaces, or single spaces in the beginning/end of string.
-    """
-
-    return ' '.join([x for x in string.split(' ') if x])
-
-
-def Astr(string):
-	'''
-	This function encodes in utf-8 a ASCII string with Arabic character in order for it to be
-	compatible with the string formatting in Python.
-
-	INPUT
-	string - ASCII string with arabic characters
-
-	OUTPUT
-	The input string encoded with utf-8
-	'''
-
-	return unicode(string, encoding='utf-8')
 
 
 tanwin_vec = (Astr('ً'), Astr('ٌ'), Astr('ٍ'))
