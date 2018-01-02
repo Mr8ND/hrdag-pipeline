@@ -1,4 +1,8 @@
-from ...utils.arabic_soundex_server import strip_accents
+# -*- coding: utf-8 -*-
+
+import sys
+sys.path.append('..')
+from utils.arabic_soundex import strip_accents
 import nltk.stem.isri as stemmer
 
 

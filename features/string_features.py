@@ -1,6 +1,7 @@
-import icu
+import icu, sys
+sys.path.append('..')
 from functools import partial
-from ...utils.arabic_parser import arabicNameParser
+from utils.arabic_parser import arabicNameParser
 
 
 def firstCharFunction(s1,s2,n):

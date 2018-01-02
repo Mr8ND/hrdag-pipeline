@@ -1,4 +1,6 @@
-from ...utils.arabic_soundex_server import arabic_soundex_names
+import sys
+sys.path.append('..')
+from utils.arabic_soundex import arabic_soundex_names
 from collections import Counter
 
 def CompContainedFunction(s1,s2):
