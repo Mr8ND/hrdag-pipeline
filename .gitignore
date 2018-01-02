@@ -6,6 +6,9 @@ arabic_names_parser/specific_nameparts_dicts.py
 *_server.py
 *.pyc
 
+#Not submitting .csv (for now)
+.csv
+
 #COMMON CONFIGURATIONS (from https://gist.github.com/octocat/9257657)
 # Compiled source #
 ###################
