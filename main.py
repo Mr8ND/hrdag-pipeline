@@ -17,7 +17,7 @@ def import_dataset(filename, encoding='utf-8', separator='|'):
 # Checking Data
 def df_column_cleaner(df, id_cols_input, name_cols_input, dod_cols_input, loc_cols_input):
 
-	list_check = [(id_cols_input, ['id_1', 'id_2']),
+	list_check = [(id_cols_input, ['hash_1', 'hash_2']),
 					(name_cols_input, ['name_1', 'name_2']),
 					(dod_cols_input, ['date_of_death_1', 'date_of_death_2']),
 					(loc_cols_input, ['location_1', 'location_2'])]
@@ -58,13 +58,10 @@ def apply_arabic_rules(df, arabic_rules_dict, col_names=['name_1', 'name_2']):
 # Apply features to data
 def apply_features(df, simple_feat_dict, hrdag_feat_dict, string_feat_dict, arabic_rules_dict):
 
-	#final_feature_list = []
-
 	#hrdag features applied
 	for func_name, tuple_obj in hrdag_feat_dict.iteritems():
 		func, m1, m2 = tuple_obj
 		df[func_name] = df[[m1,m2]].apply(lambda x: func(x[0], x[1]), 1)
-		#final_feature_list.append(func_name)
 
 	#both simple and strings features applied
 	suff_vec = [''] + arabic_rules_dict.keys()
@@ -74,9 +71,7 @@ def apply_features(df, simple_feat_dict, hrdag_feat_dict, string_feat_dict, arab
 		func, m1, m2 = tuple_obj
 		for suff in suff_vec:
 			df[func_name + suff] = df[[m1+suff, m2+suff]].apply(lambda x: func(x[0], x[1]), 1)
-			#final_feature_list.append(func_name + suff)
 
-	#return df, final_feature_list
 	return df
 
 
@@ -95,15 +90,31 @@ def select_features_for_classification(df):
 # Run Classification and attach results (match or not match)
 # XGboost object need to be imported here
 
-def run_classification(df, xgboost_filename):
-	pass
+def run_classification(X_matrix, xgboost_filename = 'data/xgboost_class_model.pkl'):
+
+	xgboost_model = pickle.load(open(xgboost_filename, 'rb'))
+	return xgboost_model.predict_proba(X_matrix)[:,1]
 
 
 # HDF file format
 # Create HDF format
 
-def create_hdf_file(df, hash_cols = ['id_1', 'id_2'], thresh_col='threshold'):
-	pass
+def create_hdf_file(df, hash_cols = ['id_1', 'id_2'], thresh_col='xgb_prob'):
+	
+	hash_cols.append(thresh_col)
+	save_df = df[hash_cols]
+
+	hdf_file = pd.HDFStore('data/classified-pairs.h5', mode='w',)
+
+	#https://gist.github.com/hunterchung/6478cb25e9d774581de9
+	types = save_df.apply(lambda x: pd.api.types.infer_dtype(x.values))
+	save_df_copy = save_df.copy()
+	for col in types[types=='unicode'].index:
+	  save_df_copy[col] = save_df[col].astype(str)
+	save_df_copy.columns = [str(c) for c in save_df_copy.columns]
+
+	hdf_file.put('pairs', save_df_copy, format='table', data_columns=True, econding='utf-8')
+	hdf_file.close()
 
 
 # Patrick's code
@@ -126,4 +137,15 @@ if __name__ == '__main__':
 	full_df = apply_arabic_rules(df, arabic_rules_dict=arabic_rules_dict)
 	features_df = apply_features(full_df, simple_feat_dict, hrdag_feat_dict, string_feat_dict, arabic_rules_dict)
 
-	print select_features_for_classification(features_df)
+	full_df['xgb_prob'] = run_classification(select_features_for_classification(features_df))
+	create_hdf_file(full_df)
+
+	cp = pd.read_hdf("data/classified-pairs.h5", 'pairs')
+	print("there are {} classified pairs".format(len(cp)))
+	print('ready.')
+
+	print cp.xgb_prob
+	print cp.id_1
+	print cp.id_2
+
+
