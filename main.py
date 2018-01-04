@@ -6,7 +6,7 @@ from features.simple_features import *
 from features.hrdag_features import *
 from features.arabic_rules import *
 from utils.parser_utils import nameCleanerFunction
-from datetime import datetime
+import pickle
 
 
 # Importing Data
@@ -15,13 +15,12 @@ def import_dataset(filename, encoding='utf-8', separator='|'):
 
 
 # Checking Data
-def df_column_cleaner(df, id_cols_input, name_cols_input, dod_cols_input, loc_cols_input, match_col_input):
+def df_column_cleaner(df, id_cols_input, name_cols_input, dod_cols_input, loc_cols_input):
 
 	list_check = [(id_cols_input, ['id_1', 'id_2']),
 					(name_cols_input, ['name_1', 'name_2']),
 					(dod_cols_input, ['date_of_death_1', 'date_of_death_2']),
-					(loc_cols_input, ['location_1', 'location_2']),
-					(match_col_input, ['match_status'])]
+					(loc_cols_input, ['location_1', 'location_2'])]
 
 	output_col_name = []
 
@@ -59,13 +58,13 @@ def apply_arabic_rules(df, arabic_rules_dict, col_names=['name_1', 'name_2']):
 # Apply features to data
 def apply_features(df, simple_feat_dict, hrdag_feat_dict, string_feat_dict, arabic_rules_dict):
 
-	final_feature_list = []
+	#final_feature_list = []
 
 	#hrdag features applied
 	for func_name, tuple_obj in hrdag_feat_dict.iteritems():
 		func, m1, m2 = tuple_obj
 		df[func_name] = df[[m1,m2]].apply(lambda x: func(x[0], x[1]), 1)
-		final_feature_list.append(func_name)
+		#final_feature_list.append(func_name)
 
 	#both simple and strings features applied
 	suff_vec = [''] + arabic_rules_dict.keys()
@@ -75,14 +74,22 @@ def apply_features(df, simple_feat_dict, hrdag_feat_dict, string_feat_dict, arab
 		func, m1, m2 = tuple_obj
 		for suff in suff_vec:
 			df[func_name + suff] = df[[m1+suff, m2+suff]].apply(lambda x: func(x[0], x[1]), 1)
-			final_feature_list.append(func_name + suff)
+			#final_feature_list.append(func_name + suff)
 
-	return df, final_feature_list
+	#return df, final_feature_list
+	return df
 
 
 # Drop all not-necessary data
-def select_features_only(df, feature_list):
-	return df[feature_list]
+def select_features_for_classification(df):
+
+	feature_list = pickle.load(open('data/col_names_class.pkl', 'rb'))
+	df_selected = df[feature_list]
+	
+	if isinstance(df_selected, pd.DataFrame):
+		df_selected = df_selected.as_matrix()
+
+	return df_selected
 
 
 # Run Classification and attach results (match or not match)
@@ -110,13 +117,13 @@ if __name__ == '__main__':
 	input_name_col = ['match_1','match_2']
 	input_dod_col = ['date_of_death_1', 'date_of_death_2']
 	input_loc_col = ['location_1', 'location_2']
-	input_matchstatus_col = ['match_status']
 	
 	mock_df_filename = 'data/mock_dataset_hrdag_pipeline.csv'
 	df = import_dataset(mock_df_filename)
-	cleaned_df = df_column_cleaner(df, id_name_col, input_name_col, input_dod_col, input_loc_col, input_matchstatus_col)
+	cleaned_df = df_column_cleaner(df, id_name_col, input_name_col, input_dod_col, input_loc_col)
 	cleaner_df = data_cleaner(cleaned_df)
 
 	full_df = apply_arabic_rules(df, arabic_rules_dict=arabic_rules_dict)
+	features_df = apply_features(full_df, simple_feat_dict, hrdag_feat_dict, string_feat_dict, arabic_rules_dict)
 
-	print apply_features(full_df, simple_feat_dict, hrdag_feat_dict, string_feat_dict, arabic_rules_dict)
+	print select_features_for_classification(features_df)
