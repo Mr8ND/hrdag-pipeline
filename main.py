@@ -1,12 +1,15 @@
 # -*- coding: utf-8 -*-
 
 import pandas as pd
+import pickle, time
+import networkx as nx
+
 from features.string_features import *
 from features.simple_features import *
 from features.hrdag_features import *
 from features.arabic_rules import *
 from utils.parser_utils import nameCleanerFunction
-import pickle
+from utils.clustering import fcluster_one_cc
 
 
 # Importing Data
@@ -99,7 +102,7 @@ def run_classification(X_matrix, xgboost_filename = 'data/xgboost_class_model.pk
 # HDF file format
 # Create HDF format
 
-def create_hdf_file(df, hash_cols = ['id_1', 'id_2'], thresh_col='xgb_prob'):
+def create_hdf_file(df, hash_cols = ['hash_1', 'hash_2'], thresh_col='xgb_prob'):
 	
 	hash_cols.append(thresh_col)
 	save_df = df[hash_cols]
@@ -118,8 +121,60 @@ def create_hdf_file(df, hash_cols = ['id_1', 'id_2'], thresh_col='xgb_prob'):
 
 
 # Patrick's code
-def clustering_step(input_filename, hdf_filename):
-	pass
+def clustering_step(hashids_set, hdf_filename = 'data/classified-pairs.h5', threshold=0.5, mock=True):
+
+	if mock:
+
+		hashids_set = set(['A', 'B', 'C', 'D', 'E', 'F'])
+		cp = pd.DataFrame.from_records([
+		        ('A', 'B', 0.9),
+		        ('A', 'C', 0.4),
+		        ('A', 'D', 0.6),
+		        ('A', 'E', 0.3),
+		        ('B', 'C', 0.6),
+		        ('C', 'F', 0.1 ),
+		        ('E', 'F', 0.97),
+		        ('D', 'E', 0.95),
+		        ('D', 'F', 0.65)], 
+		        columns=['hash_1', 'hash_2', 'xgb_prob'])
+
+		cp.set_index(['hash_1', 'hash_2'], drop=False, inplace=True)
+		#clusters_t = fcluster_one_cc(list(hashids_set), cp, 'xgb_prob', verbose=False)
+		#print(clusters_t)
+
+	else:
+		cp = pd.read_hdf(hdf_filename, 'pairs')
+		cp.set_index(['hash_1', 'hash_2'], drop=False, inplace=True)
+		print("there are {} classified pairs".format(len(cp)))
+		print('ready.')
+
+	G = nx.Graph()
+	G.add_nodes_from(hashids_set)  # make sure every record is in a component
+
+	positives = cp.xgb_prob > threshold
+	hashpairs = zip(cp.loc[positives].hash_1, cp.loc[positives].hash_2)
+	positive_pairs = [(str(h1), str(h2)) for h1, h2 in hashpairs]
+
+	print("number of positive pairs={}".format(len(positive_pairs)))
+	G.add_edges_from(positive_pairs)
+	connected_components = [c for c in nx.connected_components(G)]
+	print("number of connected_components={}".format(len(connected_components)))
+	#del G, positives, positive_pairs, hashpairs
+	print connected_components
+
+	clusters = list()
+	for cc in connected_components:
+		print cc, 'CONNECTED COMPONENT'
+		start = time.time()
+		i_clusters = fcluster_one_cc(cc, cp, 'xgb_prob', verbose=True)
+		clusters.extend(i_clusters)
+		elapsed = time.time() - start
+		print("w len(cc)={}, time = {:3.1f}s".format(len(cc), elapsed))
+	
+	clusters = [x[0] if isinstance(x, list) and len(x)==1 else x for x in clusters]
+	
+	return clusters
+	
 
 
 if __name__ == '__main__':
@@ -129,23 +184,25 @@ if __name__ == '__main__':
 	input_dod_col = ['date_of_death_1', 'date_of_death_2']
 	input_loc_col = ['location_1', 'location_2']
 	
-	mock_df_filename = 'data/mock_dataset_hrdag_pipeline.csv'
+	mock_df_filename = 'data/mock_dataset_hrdag_pipeline_2.csv'
 	df = import_dataset(mock_df_filename)
 	cleaned_df = df_column_cleaner(df, id_name_col, input_name_col, input_dod_col, input_loc_col)
-	cleaner_df = data_cleaner(cleaned_df)
+	cleaned_df = data_cleaner(cleaned_df)
 
-	full_df = apply_arabic_rules(df, arabic_rules_dict=arabic_rules_dict)
+	hash_1_list = cleaned_df['hash_1'].astype(str).values.tolist()
+	hash_2_list = cleaned_df['hash_2'].astype(str).values.tolist()
+	hashids_set = set(hash_1_list+hash_2_list)
+
+	full_df = apply_arabic_rules(cleaned_df, arabic_rules_dict=arabic_rules_dict)
 	features_df = apply_features(full_df, simple_feat_dict, hrdag_feat_dict, string_feat_dict, arabic_rules_dict)
 
 	full_df['xgb_prob'] = run_classification(select_features_for_classification(features_df))
 	create_hdf_file(full_df)
 
-	cp = pd.read_hdf("data/classified-pairs.h5", 'pairs')
-	print("there are {} classified pairs".format(len(cp)))
-	print('ready.')
+	clustering_step(hashids_set=hashids_set)
 
-	print cp.xgb_prob
-	print cp.id_1
-	print cp.id_2
+
+
+
 
 
