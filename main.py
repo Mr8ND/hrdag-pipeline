@@ -121,32 +121,14 @@ def create_hdf_file(df, hash_cols = ['hash_1', 'hash_2'], thresh_col='xgb_prob')
 
 
 # Patrick's code
-def clustering_step(hashids_set, hdf_filename = 'data/classified-pairs.h5', threshold=0.5, mock=True):
+def clustering_step(hashids_set, cp_df = None, hdf_filename = 'data/classified-pairs.h5', threshold=0.5, mock=True):
 
-	if mock:
-
-		hashids_set = set(['A', 'B', 'C', 'D', 'E', 'F'])
-		cp = pd.DataFrame.from_records([
-		        ('A', 'B', 0.9),
-		        ('A', 'C', 0.4),
-		        ('A', 'D', 0.6),
-		        ('A', 'E', 0.3),
-		        ('B', 'C', 0.6),
-		        ('C', 'F', 0.1 ),
-		        ('E', 'F', 0.97),
-		        ('D', 'E', 0.95),
-		        ('D', 'F', 0.65)], 
-		        columns=['hash_1', 'hash_2', 'xgb_prob'])
-
-		cp.set_index(['hash_1', 'hash_2'], drop=False, inplace=True)
-		#clusters_t = fcluster_one_cc(list(hashids_set), cp, 'xgb_prob', verbose=False)
-		#print(clusters_t)
-
-	else:
+	if not cp_df:
 		cp = pd.read_hdf(hdf_filename, 'pairs')
 		cp.set_index(['hash_1', 'hash_2'], drop=False, inplace=True)
-		print("there are {} classified pairs".format(len(cp)))
-		print('ready.')
+		
+	print("there are {} classified pairs".format(len(cp)))
+	print('ready.')
 
 	G = nx.Graph()
 	G.add_nodes_from(hashids_set)  # make sure every record is in a component
@@ -199,7 +181,7 @@ if __name__ == '__main__':
 	full_df['xgb_prob'] = run_classification(select_features_for_classification(features_df))
 	create_hdf_file(full_df)
 
-	clustering_step(hashids_set=hashids_set)
+	print clustering_step(hashids_set=hashids_set)
 
 
 
