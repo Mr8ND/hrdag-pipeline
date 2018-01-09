@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import pandas as pd
-import pickle, time
+import pickle, time, argparse
 import networkx as nx
 
 from features.string_features import *
@@ -107,7 +107,7 @@ def create_hdf_file(df, hash_cols = ['hash_1', 'hash_2'], thresh_col='xgb_prob')
 	hash_cols.append(thresh_col)
 	save_df = df[hash_cols]
 
-	hdf_file = pd.HDFStore('data/classified-pairs.h5', mode='w',)
+	hdf_file = pd.HDFStore('inputs/classified-pairs.h5', mode='w',)
 
 	#https://gist.github.com/hunterchung/6478cb25e9d774581de9
 	types = save_df.apply(lambda x: pd.api.types.infer_dtype(x.values))
@@ -121,11 +121,13 @@ def create_hdf_file(df, hash_cols = ['hash_1', 'hash_2'], thresh_col='xgb_prob')
 
 
 # Patrick's code
-def clustering_step(hashids_set, cp_df = None, hdf_filename = 'data/classified-pairs.h5', threshold=0.5, mock=True):
+def clustering_step(hashid_filename, input_pairs_filename, cp_df = None, threshold=0.5, mock=True):
 
 	if not cp_df:
-		cp = pd.read_hdf(hdf_filename, 'pairs')
+		cp = pd.read_hdf(input_pairs_filename, 'pairs')
 		cp.set_index(['hash_1', 'hash_2'], drop=False, inplace=True)
+
+	hashids_set = pickle.load(open(hashid_filename, 'rb'))
 		
 	print("there are {} classified pairs".format(len(cp)))
 	print('ready.')
@@ -156,24 +158,39 @@ def clustering_step(hashids_set, cp_df = None, hdf_filename = 'data/classified-p
 	clusters = [x[0] if isinstance(x, list) and len(x)==1 else x for x in clusters]
 	
 	return clusters
-	
 
 
-if __name__ == '__main__':
+def save_obj_pickle(obj, directory, filename_out):
+	'''
+	This function pickles an object in a directory with a given filename.
+	Originally used to save the LSHindex falconn object but apparently it is not possible to pickle them with Python (https://github.com/FALCONN-LIB/FALCONN/issues/80)
 
-	id_name_col = ['id_1', 'id_2']
-	input_name_col = ['match_1','match_2']
-	input_dod_col = ['date_of_death_1', 'date_of_death_2']
-	input_loc_col = ['location_1', 'location_2']
-	
-	mock_df_filename = 'data/mock_dataset_hrdag_pipeline_2.csv'
-	df = import_dataset(mock_df_filename)
+	INPUTS:
+	- obj: the object to be pickled with python
+	- directory [str]
+	- filename_out [str]
+	'''
+
+	output = open(directory + filename_out, 'wb')
+	pickle.dump(obj, output)
+	output.close()
+
+
+def classify_step(id_col, name_col, dod_col, loc_col, data_filename):
+
+	df = import_dataset(data_filename)
+
+	id_name_col = [id_col +'_1', id_col +'_2']
+	input_name_col = [name_col +'_1', name_col +'_2']
+	input_dod_col = [dod_col +'_1', dod_col +'_2']
+	input_loc_col = [loc_col +'_1', loc_col +'_2']
 	cleaned_df = df_column_cleaner(df, id_name_col, input_name_col, input_dod_col, input_loc_col)
 	cleaned_df = data_cleaner(cleaned_df)
 
 	hash_1_list = cleaned_df['hash_1'].astype(str).values.tolist()
 	hash_2_list = cleaned_df['hash_2'].astype(str).values.tolist()
 	hashids_set = set(hash_1_list+hash_2_list)
+	save_obj_pickle(obj=hashids_set, directory='inputs/', filename_out='hashid_set.pkl')
 
 	full_df = apply_arabic_rules(cleaned_df, arabic_rules_dict=arabic_rules_dict)
 	features_df = apply_features(full_df, simple_feat_dict, hrdag_feat_dict, string_feat_dict, arabic_rules_dict)
@@ -181,7 +198,35 @@ if __name__ == '__main__':
 	full_df['xgb_prob'] = run_classification(select_features_for_classification(features_df))
 	create_hdf_file(full_df)
 
-	print clustering_step(hashids_set=hashids_set)
+	print 'Classification Done'	
+
+
+if __name__ == '__main__':
+
+	parser = argparse.ArgumentParser()
+	subparsers = parser.add_subparsers(help='Possible shazam commands', dest='subparser_name')
+
+	parser_classify = subparsers.add_parser('classify', help='Classification of input pairs')
+	parser_classify.add_argument('--id_col', action='store', type=str, default='id')
+	parser_classify.add_argument('--name_col', action='store', type=str, default='match')
+	parser_classify.add_argument('--dod_col', action='store', type=str, default='date_of_death')
+	parser_classify.add_argument('--loc_col', action='store', type=str, default='location')
+	parser_classify.add_argument('--data_filename', action='store', type=str, default='data/mock_dataset_hrdag_pipeline_2.csv')
+
+	parser_clustering = subparsers.add_parser('clustering', help='CLustering step of classified input pairs')
+	parser_clustering.add_argument('--hashid_filename', type=str, action='store', default='inputs/hashid_set.pkl')
+	parser_clustering.add_argument('--input_pairs_filename', type=str, action='store', default='inputs/classified-pairs.h5')
+
+	
+	argument_parsed_dict = vars(parser.parse_args())
+	subparser_sel = argument_parsed_dict['subparser_name']
+	del argument_parsed_dict['subparser_name']
+
+	func_dict = {'classify': classify_step, 
+				'clustering': clustering_step}
+
+	print func_dict[subparser_sel](**argument_parsed_dict)	
+
 
 
 
