@@ -1,6 +1,6 @@
 import unittest2 as unittest
 import pandas as pd
-from main import clustering_step, save_obj_pickle, import_dataset, df_column_cleaner, arabic_col_cleaner, apply_arabic_rules, select_features_for_classification, run_classification, create_hdf_file
+from main import clustering_step, save_obj_pickle, import_dataset, df_column_cleaner, arabic_col_cleaner, apply_arabic_rules, select_features_for_classification, run_classification, create_hdf_file, classify_step
 from features.arabic_rules import arabic_rules_dict
 
 
@@ -110,6 +110,21 @@ class MainFunctionTests(unittest.TestCase):
 		self.assertRaises(ValueError, create_hdf_file, df_mock, 'hash_1')
 		self.assertRaises(ValueError, create_hdf_file, df_mock, 'id_1', 'hash_2')
 		self.assertRaises(ValueError, create_hdf_file, df_mock, 'id_1', 'id_2', 'xgb_prob')
+
+
+	def test_classify_step_function(self):
+		'''
+		Testing the classify_step function.
+		'''
+
+		# Testing whether passing a filename which does not exist raises an IOError, as it should
+		self.assertRaises(IOError, classify_step, 'not_a_file_clearly', 'id', 'name', 'date_of_death', 'location')
+
+		# Testing whether passing a column root which is not in the dataframe raises a ValueError, as it should
+		self.assertRaises(ValueError, classify_step, mock_filename, 'hash', 'match', 'date_of_death', 'location')
+		self.assertRaises(ValueError, classify_step, mock_filename, 'id', 'name', 'date_of_death', 'location')
+		self.assertRaises(ValueError, classify_step, mock_filename, 'id', 'match', 'dod', 'location')
+		self.assertRaises(ValueError, classify_step, mock_filename, 'id', 'match', 'date_of_death', 'loc')
 
 
 

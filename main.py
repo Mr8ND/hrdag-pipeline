@@ -251,10 +251,24 @@ def create_hdf_file(df, hash_col_1='hash_1', hash_col_2='hash_2', thresh_col='xg
 	hdf_file.close()
 
 
-def classify_step(id_col, name_col, dod_col, loc_col, data_filename):
+def classify_step(data_filename, id_col, name_col, dod_col, loc_col):
+	'''
+	This function is the main wrapper for the classification step.
 
+	INPUT:
+	- data_filename [str]
+	- id_col [str]: root of the id column in the dataframe. The id columns would then be searched by default by appending '_1' and '_2' at the bottom. E.g. if id_col is "hash", the id columns will be looked for as "hash_1" and "hash_2"
+	- name_col [str]: root of the name column in the dataframe. Same rationale as for id_col applies
+	- dod_col [str]: root of the name column in the dataframe. Same rationale as for id_col applies
+	- loc_col [str]: root of the name column in the dataframe. Same rationale as for id_col applies
+	'''
+
+	# Imports the dataframe
+	if not os.path.exists(data_filename):
+		raise IOError('File %s does not exist.'%(data_filename))
 	df = import_dataset(data_filename)
 
+	# Formats the name columns in the right way and cleans them
 	id_name_col = [id_col +'_1', id_col +'_2']
 	input_name_col = [name_col +'_1', name_col +'_2']
 	input_dod_col = [dod_col +'_1', dod_col +'_2']
@@ -262,15 +276,18 @@ def classify_step(id_col, name_col, dod_col, loc_col, data_filename):
 	cleaned_df = df_column_cleaner(df, id_name_col, input_name_col, input_dod_col, input_loc_col)
 	cleaned_df = arabic_col_cleaner(cleaned_df)
 
+	# Saves the Hash IDs set to a Pickle file
 	hash_1_list = cleaned_df['hash_1'].astype(str).values.tolist()
 	hash_2_list = cleaned_df['hash_2'].astype(str).values.tolist()
 	hashids_set = set(hash_1_list+hash_2_list)
 	save_obj_pickle(obj=hashids_set, directory='inputs/', filename_out='hashid_set.pkl')
 
+	# Applies the classification step
 	full_df = apply_arabic_rules(cleaned_df, arabic_rules_dict=arabic_rules_dict)
 	features_df = apply_features(full_df, simple_feat_dict, hrdag_feat_dict, string_feat_dict, arabic_rules_dict)
-
 	full_df['xgb_prob'] = run_classification(select_features_for_classification(features_df))
+	
+	#Creates an HDF file
 	create_hdf_file(full_df)
 
 	print 'Classification Done'	
