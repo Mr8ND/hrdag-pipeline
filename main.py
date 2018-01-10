@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import pandas as pd
-import pickle, time, argparse
+import pickle, time, argparse, os
 import networkx as nx
 
 from features.string_features import *
@@ -12,27 +12,56 @@ from utils.parser_utils import nameCleanerFunction
 from utils.clustering import fcluster_one_cc
 
 
-# Importing Data
 def import_dataset(filename, encoding='utf-8', separator='|'):
+	'''
+	Imports a csv as pandas dataframe, just a wrapper around pd.DataFrame.from_csv
+	INPUT:
+	- filename [str]
+	- encoding [str]: the encoding of the file - in this case unicode utf-8 by default
+	- separator [str]
+	'''
+	if not os.path.exists(filename):
+		raise IOError('File %s does not exist.'%(filename))
+
 	return pd.DataFrame.from_csv(filename, encoding=encoding, sep=separator)
 
 
-# Checking Data
 def df_column_cleaner(df, id_cols_input, name_cols_input, dod_cols_input, loc_cols_input):
+	'''
+	Changes the name of the columns in the input in the expected column names.
+	Raises a ValueError if some of the columns are missing.
 
+	INPUTS:
+	- df [pd.DataFrame]
+	- id_cols_input [list]: list with two strings indicating the column names for the pair ids
+	- name_cols_input [list]: list with two strings indicating the column names for the pair names
+	- dod_cols_input [list]: list with two strings indicating the column names for the pair date of death
+	- loc_cols_input [list]: list with two strings indicating the column names for the pair locations
+
+	OUTPUT:
+	- same df as input with the expected column names.
+	'''
+
+	# Pairing the input column names with expected column names
 	list_check = [(id_cols_input, ['hash_1', 'hash_2']),
 					(name_cols_input, ['name_1', 'name_2']),
 					(dod_cols_input, ['date_of_death_1', 'date_of_death_2']),
 					(loc_cols_input, ['location_1', 'location_2'])]
 
+	# Create new columns if necessary
 	output_col_name = []
-
 	for input_list, output_list in list_check:
+
+		for input_col in input_list:
+			if input_col not in df.columns.values:
+				raise ValueError('Column %s is not in the df columns.'%(input_col))
+
 		if input_list != output_list:
 			for j, input_name in enumerate(input_list):
 				df[output_list[j]] = df[input_name]
 		output_col_name += output_list
 
+	df.columns = [str(col) for col in df.columns]
 	return df[output_col_name]
 
 

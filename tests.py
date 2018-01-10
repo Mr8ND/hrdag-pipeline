@@ -1,6 +1,9 @@
 import unittest2 as unittest
 import pandas as pd
-from main import clustering_step, save_obj_pickle
+from main import clustering_step, save_obj_pickle, import_dataset, df_column_cleaner
+
+
+mock_filename = 'data/mock_dataset_hrdag_pipeline_2.csv'
 
 
 class MainFunctionTests(unittest.TestCase):
@@ -17,6 +20,34 @@ class MainFunctionTests(unittest.TestCase):
 
 		save_obj_pickle(obj=hashids_set, directory='inputs/', filename_out='mock_hashids.pkl')
 		self.assertEqual([['E', 'D', 'F'], ['A', 'C', 'B']], clustering_step('inputs/mock_hashids.pkl', None, cp=cp))
+
+
+	def test_import_dataset_function(self):
+
+		self.assertRaises(IOError, import_dataset, 'clearly_not_a_file')
+		self.assertRaises(IOError, import_dataset, 'inputs/clearly_not_a_file')
+
+
+	def test_df_column_cleaner_function(self):
+
+		df_mock = import_dataset(mock_filename)
+
+		self.assertRaises(ValueError, df_column_cleaner, df_mock, ['hash_1', 'hash_2'], ['match_1', 'match_2'], 
+			['date_of_death_1','date_of_death_2'], ['location_1', 'location_2'])
+		self.assertRaises(ValueError, df_column_cleaner, df_mock, ['id_1', 'id_2'], ['matching_1', 'matching_2'], 
+			['date_of_death_1','date_of_death_2'], ['location_1', 'location_2'])
+		self.assertRaises(ValueError, df_column_cleaner, df_mock, ['id_1', 'id_2'], ['match_1', 'match_2'], 
+			['date_of_dying_1','date_of_dying_2'], ['location_1', 'location_2'])
+		self.assertRaises(ValueError, df_column_cleaner, df_mock, ['id_1', 'id_2'], ['match_1', 'match_2'], 
+			['date_of_death_1','date_of_death_2'], ['loc_1', 'loc_2'])
+
+		expected_col_names = ['hash_1', 'hash_2', 'name_1', 'name_2', 'date_of_death_1', 'date_of_death_2', 'location_1', 'location_2']
+		self.assertEqual(set(expected_col_names), set(df_column_cleaner(df_mock, ['id_1', 'id_2'], ['match_1', 'match_2'], 
+			['date_of_death_1','date_of_death_2'], ['location_1', 'location_2']).columns.values))
+
+
+
+
 
 
 if __name__ == '__main__':
