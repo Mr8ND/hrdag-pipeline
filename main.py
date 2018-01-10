@@ -81,7 +81,7 @@ def apply_features(df, simple_feat_dict, hrdag_feat_dict, string_feat_dict, arab
 # Drop all not-necessary data
 def select_features_for_classification(df):
 
-	feature_list = pickle.load(open('data/col_names_class.pkl', 'rb'))
+	feature_list = pickle.load(open('inputs/col_names_class.pkl', 'rb'))
 	df_selected = df[feature_list]
 	
 	if isinstance(df_selected, pd.DataFrame):
@@ -93,7 +93,7 @@ def select_features_for_classification(df):
 # Run Classification and attach results (match or not match)
 # XGboost object need to be imported here
 
-def run_classification(X_matrix, xgboost_filename = 'data/xgboost_class_model.pkl'):
+def run_classification(X_matrix, xgboost_filename = 'inputs/xgboost_class_model.pkl'):
 
 	xgboost_model = pickle.load(open(xgboost_filename, 'rb'))
 	return xgboost_model.predict_proba(X_matrix)[:,1]
@@ -121,9 +121,9 @@ def create_hdf_file(df, hash_cols = ['hash_1', 'hash_2'], thresh_col='xgb_prob')
 
 
 # Patrick's code
-def clustering_step(hashid_filename, input_pairs_filename, cp_df = None, threshold=0.5, mock=True):
+def clustering_step(hashid_filename, input_pairs_filename, cp=None, threshold=0.5, mock=True):
 
-	if not cp_df:
+	if input_pairs_filename:
 		cp = pd.read_hdf(input_pairs_filename, 'pairs')
 		cp.set_index(['hash_1', 'hash_2'], drop=False, inplace=True)
 
@@ -157,6 +157,7 @@ def clustering_step(hashid_filename, input_pairs_filename, cp_df = None, thresho
 	
 	clusters = [x[0] if isinstance(x, list) and len(x)==1 else x for x in clusters]
 	
+	print clusters
 	return clusters
 
 
@@ -225,7 +226,7 @@ if __name__ == '__main__':
 	func_dict = {'classify': classify_step, 
 				'clustering': clustering_step}
 
-	print func_dict[subparser_sel](**argument_parsed_dict)	
+	func_dict[subparser_sel](**argument_parsed_dict)	
 
 
 
