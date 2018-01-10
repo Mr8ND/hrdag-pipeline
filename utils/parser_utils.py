@@ -141,18 +141,29 @@ arabic_forms_toclassic_lookup = {u'ﺀﺁﺂﺃﺄﺅﺆﺇﺈﺉﺊﺋﺌﺍﺎ
                                 u'ﺱﺲﺳﺴ':u'س', u'ﺵﺶﺷﺸ':u'ش',u'ﺹﺺﺻﺼ':u'ص', u'ﺽﺾﺿﻀ':u'ض', u'ﻁﻂﻃﻄ':u'ط', u'ﻅﻆﻇﻈ':u'ظ', u'ﻉﻊﻋﻌ':u'ع',
                                 u'ﻍﻎﻏﻐ':u'غ', u'ﻑﻒﻓﻔ':u'ف', u'ﻕﻖﻗﻘ':u'ق', u'ﻙﻚﻛﻜ':u'ك', u'ﻝﻞﻟﻠ':u'ل', u'ﻡﻢﻣﻤ':u'م', u'ﻥﻦﻧﻨ':u'ن', u'ﻩﻪﻫﻬ':u'ه', u'ﻭﻮ':u'و', u'ﻯﻰﻱﻲﻳﻴ':u'ي', u'ﻵﻶﻷﻸﻹﻺﻻﻼ':u'لا'}
 
-def removeReprFunct(x):
+def removeReprFunct(string, arabic_forms_toclassic_lookup=arabic_forms_toclassic_lookup):
+    '''
+    Removes the representation function from an Arabic string.
+
+    INPUT:
+    - string [str]: expected to be unicode utf-8 encoded
+
+    OUTPUT:
+    - string with representation function changed.
+
+    '''
     output = ''
-    for i,xpart in enumerate(x):
-        flag = False
-        for k,v in arabic_forms_toclassic_lookup.iteritems():
-            if xpart in k and not flag:
-                output += v
-                flag = True
-        if not flag:
+    for i,xpart in enumerate(string):
+        if xpart in arabic_forms_toclassic_lookup.keys():
+            output += arabic_forms_toclassic_lookup[xpart]
+        else:
             output += xpart
     return output
 
 
 def nameCleanerFunction(s):
+    '''
+    Readjusts the spaces in the strings and removes the representation form in Arabic strings.
+    Wrapper around readjustSpacesInString and removeReprFunct.
+    '''
     return removeReprFunct(readjustSpacesInString(s))
