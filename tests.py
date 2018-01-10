@@ -1,6 +1,7 @@
 import unittest2 as unittest
 import pandas as pd
-from main import clustering_step, save_obj_pickle, import_dataset, df_column_cleaner
+from main import clustering_step, save_obj_pickle, import_dataset, df_column_cleaner, arabic_col_cleaner, apply_arabic_rules, select_features_for_classification, run_classification
+from features.arabic_rules import arabic_rules_dict
 
 
 mock_filename = 'data/mock_dataset_hrdag_pipeline_2.csv'
@@ -46,7 +47,32 @@ class MainFunctionTests(unittest.TestCase):
 			['date_of_death_1','date_of_death_2'], ['location_1', 'location_2']).columns.values))
 
 
+	def test_arabic_col_cleaner_function(self):
 
+		df_mock = import_dataset(mock_filename)
+		self.assertRaises(ValueError, arabic_col_cleaner, df_mock, ['not_a_col', 'not_a_col_either'])
+
+
+	def test_apply_arabic_rules_function(self):
+
+		df_mock = import_dataset(mock_filename)
+		self.assertRaises(ValueError, apply_arabic_rules, df_mock, arabic_rules_dict, ['not_a_col', 'not_a_col_either'])
+
+
+	def test_select_features_for_classification_function(self):
+		
+		df_mock = import_dataset(mock_filename)
+		self.assertRaises(IOError, select_features_for_classification, df_mock, 'not_a_file')
+		self.assertRaises(IOError, select_features_for_classification, df_mock, 'inputs/not_a_file_either')
+
+
+	def test_run_classification_function(self):
+
+		df_mock = import_dataset(mock_filename)
+		self.assertRaises(IOError, run_classification, df_mock, 'not_a_file')
+		self.assertRaises(IOError, run_classification, df_mock, 'inputs/not_a_file_either')
+
+		self.assertRaises(TypeError, run_classification, df_mock)
 
 
 

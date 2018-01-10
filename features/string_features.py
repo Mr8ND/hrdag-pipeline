@@ -191,6 +191,7 @@ def sameArabicNamePartFunction(s1, s2, namepart='ISM', binary=True):
     else:
         return perc_al
 
+
 string_feat_dict={
 	'n_chars_first': (numberSameCharFunction, 'name_1', 'name_2'),
     'n_chars_last': (partial(numberSameCharFunction, last=True), 'name_1', 'name_2'),
