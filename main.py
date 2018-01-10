@@ -132,7 +132,6 @@ def apply_arabic_rules(df, arabic_rules_dict, col_names=['name_1', 'name_2']):
 	return df
 
 
-# Apply features to data
 def apply_features(df, simple_feat_dict, hrdag_feat_dict, string_feat_dict, arabic_rules_dict):
 	'''
 	Applies the three sets of features - hrdag, simple and string features - to the dataframe through three dictionaries.
@@ -219,12 +218,10 @@ def run_classification(X_matrix, xgboost_filename='inputs/xgboost_class_model.pk
 	return xgboost_model.predict_proba(X_matrix)[:,1]
 
 
-# HDF file format
-# Create HDF format
-
 def create_hdf_file(df, hash_col_1='hash_1', hash_col_2='hash_2', thresh_col='xgb_prob', filename_out='inputs/classified-pairs.h5', dataframe_name_hdf='pairs'):
 	'''
 	This function creates an HDF file from a dataframe, using two columns as hashes and a third one as matching probability.
+	Raises a ValueError if the columns are not in the dataframe.
 
 	INPUT:
 	- df [pd.DataFrame]
@@ -234,6 +231,8 @@ def create_hdf_file(df, hash_col_1='hash_1', hash_col_2='hash_2', thresh_col='xg
 	'''
 	
 	cols_sel = [hash_col_1, hash_col_2, thresh_col]
+	for col in cols_sel:
+		raise ValueError('Column %s is not in the dataframe.'%(col))
 	save_df = df[cols_sel]
 
 	# Open HDF file
@@ -250,7 +249,6 @@ def create_hdf_file(df, hash_col_1='hash_1', hash_col_2='hash_2', thresh_col='xg
 	# Adding the dataframe with the name dataframe_name_hdf
 	hdf_file.put(dataframe_name_hdf, save_df_copy, format='table', data_columns=True, econding='utf-8')
 	hdf_file.close()
-
 
 
 def classify_step(id_col, name_col, dod_col, loc_col, data_filename):
