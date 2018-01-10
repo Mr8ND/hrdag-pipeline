@@ -21,7 +21,7 @@ class MainFunctionTests(unittest.TestCase):
 				columns=['hash_1', 'hash_2', 'xgb_prob'])
 		cp.set_index(['hash_1', 'hash_2'], drop=False, inplace=True)
 
-		save_obj_pickle(obj=hashids_set, directory='inputs/', filename_out='mock_hashids.pkl')
+		save_obj_pickle(obj=hashids_set, filename_out='inputs/mock_hashids.pkl')
 		self.assertEqual([['E', 'D', 'F'], ['A', 'C', 'B']], clustering_step('inputs/mock_hashids.pkl', None, cp=cp))
 
 
@@ -127,6 +127,15 @@ class MainFunctionTests(unittest.TestCase):
 		self.assertRaises(ValueError, classify_step, mock_filename, 'id', 'match', 'date_of_death', 'loc')
 
 
+	def test_clustering_step_function(self):
+		'''
+		Testing the clustering_step function.
+		'''
+
+		# Testing whether passing a filename which does not exist raises an IOError, as it should
+		self.assertRaises(IOError, clustering_step, 'not_a_file_clearly', 'not_a_file_either')
+		self.assertRaises(IOError, clustering_step, 'inputs/hashid_set.pkl', 'not_a_file_either')
+		self.assertRaises(IOError, clustering_step, 'not_a_file_clearly', 'inputs/classified-pairs.h5')
 
 
 if __name__ == '__main__':

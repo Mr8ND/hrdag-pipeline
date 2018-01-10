@@ -13,17 +13,16 @@ from utils.parser_utils import nameCleanerFunction
 from utils.clustering import fcluster_one_cc
 
 
-def save_obj_pickle(obj, directory, filename_out):
+def save_obj_pickle(obj,filename_out):
 	'''
 	This function pickles an object in a directory with a given filename.
 
 	INPUTS:
 	- obj: the object to be pickled with python
-	- directory [str]
 	- filename_out [str]
 	'''
 
-	output = open(directory + filename_out, 'wb')
+	output = open(filename_out, 'wb')
 	pickle.dump(obj, output)
 	output.close()
 
@@ -232,7 +231,8 @@ def create_hdf_file(df, hash_col_1='hash_1', hash_col_2='hash_2', thresh_col='xg
 	
 	cols_sel = [hash_col_1, hash_col_2, thresh_col]
 	for col in cols_sel:
-		raise ValueError('Column %s is not in the dataframe.'%(col))
+		if col not in df.columns:
+			raise ValueError('Column %s is not in the dataframe.'%(col))
 	save_df = df[cols_sel]
 
 	# Open HDF file
@@ -280,7 +280,7 @@ def classify_step(data_filename, id_col, name_col, dod_col, loc_col):
 	hash_1_list = cleaned_df['hash_1'].astype(str).values.tolist()
 	hash_2_list = cleaned_df['hash_2'].astype(str).values.tolist()
 	hashids_set = set(hash_1_list+hash_2_list)
-	save_obj_pickle(obj=hashids_set, directory='inputs/', filename_out='hashid_set.pkl')
+	save_obj_pickle(obj=hashids_set, filename_out='inputs/hashid_set.pkl')
 
 	# Applies the classification step
 	full_df = apply_arabic_rules(cleaned_df, arabic_rules_dict=arabic_rules_dict)
@@ -290,47 +290,72 @@ def classify_step(data_filename, id_col, name_col, dod_col, loc_col):
 	#Creates an HDF file
 	create_hdf_file(full_df)
 
-	print 'Classification Done'	
+	print 'Classification Step Done'	
 
 
 # Patrick's code
-def clustering_step(hashid_filename, input_pairs_filename, cp=None, threshold=0.5, mock=True, dataframe_name='pairs'):
+def clustering_step(hashid_filename, input_pairs_filename, cp=None, threshold=0.5, dataframe_name='pairs', verbose=True, saved_cluster_filename='output/cluster_list.pkl'):
+	'''
+	Main clustering step function.
+	Most of the code is taken directly from Patrick Ball's blog post on clustering (https://hrdag.org/tech-notes/clustering-and-solving-the-right-problem.html).
 
+	INPUT:
+	- hashid_filename [str]: filename of the hashids used for classification
+	- input_pairs_filename [str]: filename for the input pairs HDF file
+	- cp [pd.DataFrame]: optional argument to pass a dataframe directly. In this case, the input_pairs_filename needs to be None or ''
+	- threshold [float]: threshold to discriminate whether a pair is a match or not
+	- dataframe_name [str]: dataframe name in the HDF file
+
+	OUTPUT:
+	List of lists of clusters of hashids.
+	'''
+
+	# Import pairs dataset
 	if input_pairs_filename:
+		if not os.path.exists(input_pairs_filename):
+			raise IOError('File %s does not exist.'%(input_pairs_filename))
 		cp = pd.read_hdf(input_pairs_filename, dataframe_name)
 		cp.set_index(['hash_1', 'hash_2'], drop=False, inplace=True)
+	if verbose:
+		print("there are {} classified pairs".format(len(cp)))
+		print('ready.')
 
+	# Import hash id list
+	if not os.path.exists(hashid_filename):
+		raise IOError('File %s does not exist.'%(hashid_filename))
 	hashids_set = pickle.load(open(hashid_filename, 'rb'))
 		
-	print("there are {} classified pairs".format(len(cp)))
-	print('ready.')
-
+	# Creating the network object and attaching the pairs
 	G = nx.Graph()
 	G.add_nodes_from(hashids_set)  # make sure every record is in a component
-
 	positives = cp.xgb_prob > threshold
 	hashpairs = zip(cp.loc[positives].hash_1, cp.loc[positives].hash_2)
 	positive_pairs = [(str(h1), str(h2)) for h1, h2 in hashpairs]
-
-	print("number of positive pairs={}".format(len(positive_pairs)))
+	if verbose:
+		print("number of positive pairs={}".format(len(positive_pairs)))
 	G.add_edges_from(positive_pairs)
 	connected_components = [c for c in nx.connected_components(G)]
-	print("number of connected_components={}".format(len(connected_components)))
-	#del G, positives, positive_pairs, hashpairs
-	print connected_components
+	if verbose:
+		print("number of connected_components={}".format(len(connected_components)))
 
+	# Clustering process
 	clusters = list()
 	for cc in connected_components:
-		print cc, 'CONNECTED COMPONENT'
+		if verbose:
+			print cc, 'CONNECTED COMPONENT'
 		start = time.time()
-		i_clusters = fcluster_one_cc(cc, cp, 'xgb_prob', verbose=True)
+		i_clusters = fcluster_one_cc(cc, cp, 'xgb_prob', verbose=verbose)
 		clusters.extend(i_clusters)
 		elapsed = time.time() - start
-		print("w len(cc)={}, time = {:3.1f}s".format(len(cc), elapsed))
+		if verbose:
+			print("w len(cc)={}, time = {:3.1f}s".format(len(cc), elapsed))
 	
-	clusters = [x[0] if isinstance(x, list) and len(x)==1 else x for x in clusters]
-	
-	print clusters
+	# Formatting clusters as list of lists and saving it
+	clusters = [[x] if isinstance(x, str) else x for x in clusters]
+	if verbose:
+		print clusters
+	print 'Clustering Step Done'
+	save_obj_pickle(clusters, saved_cluster_filename)
 	return clusters
 
 
